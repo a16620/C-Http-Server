@@ -483,12 +483,19 @@ VOID ParseUriToPath(char* str)
 	}
 }
 
+SOCKET listener;
+void ClearWS() {
+	closesocket(listener);
+	WSACleanup();
+}
+
 int main(int argc, char* args[])
 {
 	//소켓 초기화
 	struct WSAData wsa;
 	WSAStartup(MAKEWORD(2, 2), &wsa);
-	SOCKET listener = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	listener = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	atexit(ClearWS);
 	struct sockaddr_in sAddr;
 	sAddr.sin_family = AF_INET;
 	sAddr.sin_addr.S_un.S_addr = INADDR_ANY;
@@ -511,13 +518,6 @@ int main(int argc, char* args[])
 	int segcnt = 0;
 	while (1)
 	{
-		//for arduino
-		/*register int i = 0;
-		for (; i < HTTPSEGMENT_BUFFER_SIZE; ++i)
-		{
-			recv(client,)
-		}*/
-		//for windows
 		HTTPRequestSegment _seg;
 		int len = recv(client, _seg.buffer, HTTPSEGMENT_BUFFER_SIZE, 0);
 		if (len == -1)
@@ -561,11 +561,10 @@ int main(int argc, char* args[])
 	memcpy(buffer + ((segcnt-1)*HTTPSEGMENT_BUFFER_SIZE), _seg.buffer, ltlen);
 	buffer[(segcnt - 1)*HTTPSEGMENT_BUFFER_SIZE + ltlen] = '\0';
 	ClearQueue();
-
 	HTTPMethod htm;
 	if (GetDirectoryFromHttpRequestPacket(buffer, &htm))
 	{
-		printf("%s Dir:%s\n", (htm.method == HGET ? "GET" : "UND"), htm.dir);
+		printf("%s Dir:%s\n", (htm.method == HGET ? "GET" : "UNK"), htm.dir);
 		if (!SecureSafeCheckUrl(htm.dir))
 			SendErrorPage(client, HTTPCODE_403);
 		if (strcmp(htm.dir, "/"))
@@ -591,6 +590,6 @@ int main(int argc, char* args[])
 	closesocket(client);
 	//연결해제 & 처리 끝
 	}
-	WSACleanup();
+
 	return 0;
 }
